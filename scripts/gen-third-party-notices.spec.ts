@@ -157,6 +157,25 @@ describe('virtualManifest', () => {
     }
   })
 
+  it('skips the empty store directory pnpm 12 leaves for a skipped platform payload', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-notices-stub-'))
+    try {
+      const name = '@scope/pkg'
+      const store = join(root, 'store')
+      // pnpm 12 records a platform-gated optional dependency it skips as an
+      // empty virtual-store directory.
+      mkdirSync(join(store, `${name.replace('/', '+')}@1.0.0`), { recursive: true })
+      const manifestDir = join(store, `${name.replace('/', '+')}@2.0.0`, 'node_modules', name)
+      mkdirSync(manifestDir, { recursive: true })
+      writeFileSync(join(manifestDir, 'package.json'), JSON.stringify({ name, version: '2.0.0', license: 'MIT' }))
+
+      expect(virtualManifest(store, name, '1.0.0')).toBeUndefined()
+      expect(virtualManifest(store, name, '2.0.0')).toMatchObject({ name, version: '2.0.0' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('falls back to a content scan when pnpm 11 truncates the store directory name', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-notices-truncated-'))
     try {
