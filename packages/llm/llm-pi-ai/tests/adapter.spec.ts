@@ -15,6 +15,7 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
+import { openCodeSessionHeaders } from '../src/adapter.ts'
 import { memoryAuth } from './auth-double.ts'
 import { assemble } from './assemble.ts'
 import { anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
@@ -1109,4 +1110,35 @@ it.each([
     auth: memoryAuth(),
   })
   expect(await adapter.listModels('deepseek')).not.toHaveLength(0)
+})
+
+describe('openCodeSessionHeaders', () => {
+  it('adds the session header for an OpenCode endpoint', () => {
+    expect(openCodeSessionHeaders('https://opencode.ai/v1', 'session-abc'))
+      .toEqual({ 'x-opencode-session': 'session-abc' })
+  })
+
+  it('adds it for an OpenCode subdomain and a mixed-case host', () => {
+    expect(openCodeSessionHeaders('https://zen.OPENCODE.ai/v1', 'session-abc'))
+      .toEqual({ 'x-opencode-session': 'session-abc' })
+  })
+
+  it('adds nothing for another provider endpoint', () => {
+    expect(openCodeSessionHeaders('https://api.deepseek.com/v1', 'session-abc')).toEqual({})
+  })
+
+  it('adds nothing for a host that only resembles OpenCode', () => {
+    expect(openCodeSessionHeaders('https://opencode.ai.example.test/v1', 'session-abc')).toEqual({})
+    expect(openCodeSessionHeaders('https://not-opencode.ai/v1', 'session-abc')).toEqual({})
+  })
+
+  it('adds nothing for a malformed endpoint URL', () => {
+    expect(openCodeSessionHeaders('opencode.ai/v1', 'session-abc')).toEqual({})
+  })
+
+  it('adds nothing without a resolved endpoint or a session id', () => {
+    expect(openCodeSessionHeaders(undefined, 'session-abc')).toEqual({})
+    expect(openCodeSessionHeaders('https://opencode.ai/v1', undefined)).toEqual({})
+    expect(openCodeSessionHeaders('https://opencode.ai/v1', '')).toEqual({})
+  })
 })

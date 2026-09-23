@@ -261,7 +261,9 @@ export function claudeDistributionFromManifest(
  * matches ordinary `@scope+name@version` directory names; pnpm 11 truncates
  * long names (a peer-suffixed name past the length limit becomes
  * `<prefix>_<hash>`), so a content scan falls back over the whole store when
- * the prefix misses.
+ * the prefix misses. pnpm 12 records a platform-gated optional dependency it
+ * skips as an empty store directory, so a prefix match can hold no manifest;
+ * those entries are skipped rather than read.
  *
  * @param virtual - the `.pnpm` virtual store directory to scan.
  * @param name - the external package name, exactly as `node_modules` spells it.
@@ -277,7 +279,9 @@ export function virtualManifest(
   const prefix = `${name.replace('/', '+')}@`
   const entries = readdirSync(virtual)
   for (const entry of entries.filter(dir => dir.startsWith(prefix))) {
-    const manifest = JSON.parse(readFileSync(resolve(virtual, entry, 'node_modules', name, 'package.json'), 'utf8')) as VirtualManifest
+    const manifestPath = resolve(virtual, entry, 'node_modules', name, 'package.json')
+    if (!existsSync(manifestPath)) continue
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as VirtualManifest
     if (expectedVersion === undefined || manifest.version === expectedVersion) return manifest
   }
   for (const dir of entries) {
